@@ -48,4 +48,4 @@ docker run -p 8000:8000 stock-analysis
 - **A股 (CN)**: 上证指数, 茅台 等
 - **加密货币**: BTC, ETH, SOL 等
 
-更多详情请参考 GitHub 仓库。
+更多详情请参考 GitHub 仓库：[https://github.com/iwanlebron/stock-analysis](https://github.com/iwanlebron/stock-analysis)
