@@ -20,10 +20,10 @@
 
 ```bash
 # 直接运行
-go run cmd/server/main.go
+go run main.go
 
 # 或编译为二进制文件运行
-go build -o server cmd/server/main.go
+go build -o server main.go
 ./server
 ```
 
@@ -80,11 +80,13 @@ GET /fear-greed?ticker=AAPL&freq=1d&window=252
 
 ```
 .
-├── cmd/server/      # 服务入口
+├── main.go          # 服务入口
 ├── internal/
 │   ├── api/         # HTTP API 处理与静态资源嵌入
 │   ├── calc/        # 核心算法：指标计算与评分引擎
-│   ├── data/        # 数据源适配 (Yahoo Finance)
 │   └── models/      # 数据结构定义
-└── go.mod           # 依赖管理
+├── go.mod           # 依赖管理
+├── go.sum           # 依赖校验
+├── Dockerfile       # Docker 构建文件
+└── push_to_dockerhub.sh  # Docker 推送脚本
 ```
