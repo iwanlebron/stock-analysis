@@ -1,0 +1,574 @@
+{{define "scripts"}}
+<script>
+  const $ = id => document.getElementById(id);
+  
+  const STRINGS = {
+    zh: {
+      searchPlaceholder: "输入股票代码 (如 AAPL)",
+      runAnalysis: "运行分析",
+      settings: "设置",
+      history: "历史走势",
+      greed: "贪婪 > 75",
+      fear: "恐惧 < 25",
+      indicators: "指标拆解 (0-100)",
+      howTo: "如何计算?",
+      settingsTitle: "设置",
+      startDate: "开始日期",
+      freq: "频率",
+      freqDaily: "日线 (1D)",
+      freqHourly: "小时线 (1H)",
+      save: "保存并应用",
+      methodTitle: "计算方法",
+      date: "日期",
+      price: "价格",
+      freqTitle: "频率",
+      marketOverview: "市场概览",
+      markets: {
+        us: "美股",
+        hk: "港股",
+        cn: "A股",
+        crypto: "加密"
+      },
+      indices: {
+        "SPY": "标普 500",
+        "QQQ": "纳指 100",
+        "DIA": "道琼斯",
+        "NVDA": "英伟达",
+        "^HSI": "恒生指数",
+        "0700.HK": "腾讯控股",
+        "9988.HK": "阿里巴巴",
+        "3690.HK": "美团",
+        "000001.SS": "上证指数",
+        "399001.SZ": "深证成指",
+        "600519.SS": "贵州茅台",
+        "BTC-USD": "比特币",
+        "ETH-USD": "以太坊",
+        "SOL-USD": "Solana"
+      }
+    },
+    en: {
+      searchPlaceholder: "Enter Ticker (e.g. AAPL)",
+      runAnalysis: "Run Analysis",
+      settings: "Settings",
+      history: "History",
+      greed: "Greed > 75",
+      fear: "Fear < 25",
+      indicators: "Indicators (0-100)",
+      howTo: "Method?",
+      settingsTitle: "Settings",
+      startDate: "Start Date",
+      freq: "Frequency",
+      freqDaily: "Daily (1D)",
+      freqHourly: "Hourly (1H)",
+      save: "Save & Apply",
+      methodTitle: "Calculation Method",
+      loading: "Loading...",
+      inputTicker: "Please enter ticker",
+      date: "DATE",
+      price: "PRICE",
+      freqTitle: "FREQ",
+      marketOverview: "Market Overview",
+      markets: {
+        us: "US",
+        hk: "HK",
+        cn: "CN",
+        crypto: "Crypto"
+      },
+      indices: {
+        "SPY": "S&P 500",
+        "QQQ": "Nasdaq 100",
+        "DIA": "Dow Jones",
+        "NVDA": "NVIDIA",
+        "^HSI": "Hang Seng",
+        "0700.HK": "Tencent",
+        "9988.HK": "Alibaba",
+        "3690.HK": "Meituan",
+        "000001.SS": "Shanghai",
+        "399001.SZ": "Shenzhen",
+        "600519.SS": "Moutai",
+        "BTC-USD": "Bitcoin",
+        "ETH-USD": "Ethereum",
+        "SOL-USD": "Solana"
+      }
+    }
+  };
+
+  let curLang = localStorage.getItem('lang') || 'zh';
+  let curTheme = localStorage.getItem('theme') || 'dark';
+
+  const MARKETS = {
+    us: ["SPY", "QQQ", "DIA", "NVDA", "AAPL", "MSFT", "TSLA", "AMD"],
+    hk: ["^HSI", "0700.HK", "9988.HK", "3690.HK", "1810.HK", "9888.HK"],
+    cn: ["000001.SS", "399001.SZ", "600519.SS", "300750.SZ", "002594.SZ"],
+    crypto: ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "DOGE-USD"]
+  };
+  
+  let activeMarket = "us";
+  let activeTicker = "SPY"; 
+  let lastSeries = null; // Store for re-rendering chart on theme switch
+
+  function toggleTheme() {
+    curTheme = curTheme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('theme', curTheme);
+    applyTheme();
+    if(lastSeries) renderChart(lastSeries); // Re-render chart with new colors
+  }
+
+  function applyTheme() {
+    document.documentElement.setAttribute('data-theme', curTheme);
+    if (curTheme === 'light') {
+      $('iconSun').style.display = 'none';
+      $('iconMoon').style.display = 'block';
+    } else {
+      $('iconSun').style.display = 'block';
+      $('iconMoon').style.display = 'none';
+    }
+  }
+
+  // Search Suggestions
+  function showSuggestions() {
+    const list = $('suggestions');
+    list.innerHTML = '';
+    
+    // Group by Market
+    Object.keys(MARKETS).forEach(mKey => {
+      const mName = STRINGS[curLang].markets[mKey];
+      const tickers = MARKETS[mKey];
+      
+      const group = document.createElement('div');
+      group.className = 'suggestion-group';
+      group.textContent = mName;
+      list.appendChild(group);
+      
+      tickers.forEach(t => {
+        const name = STRINGS[curLang].indices[t] || t;
+        const item = document.createElement('div');
+        item.className = 'suggestion-item';
+        item.innerHTML = `<span class="s-ticker">${t}</span><span class="s-name">${name}</span>`;
+        item.onmousedown = (e) => { // use mousedown to prevent blur firing first
+          e.preventDefault();
+          selectSuggestion(t);
+        };
+        list.appendChild(item);
+      });
+    });
+    
+    list.classList.add('show');
+  }
+
+  function hideSuggestions() {
+    $('suggestions').classList.remove('show');
+  }
+
+  function selectSuggestion(ticker) {
+    $('tickerInput').value = ticker;
+    hideSuggestions();
+    runAnalysis(ticker);
+  }
+
+  function toggleLang() {
+    curLang = curLang === 'zh' ? 'en' : 'zh';
+    localStorage.setItem('lang', curLang);
+    applyLang();
+    // Refresh tabs text
+    renderTabs();
+    initMarketOverview();
+    runAnalysis(activeTicker);
+  }
+
+  function applyLang() {
+    const t = STRINGS[curLang];
+    $('langLabel').textContent = curLang === 'zh' ? 'EN' : '中';
+    
+    $('tickerInput').placeholder = t.searchPlaceholder;
+    // $('btnRun').title = t.runAnalysis; // Removed button
+    $('btnSettings').title = t.settings;
+    
+    $('titleHistory').textContent = t.history;
+    $('legendGreed').innerHTML = `<span class="dot" style="background:var(--greed)"></span>${t.greed}`;
+    $('legendFear').innerHTML = `<span class="dot" style="background:var(--fear)"></span>${t.fear}`;
+    
+    $('titleIndicators').textContent = t.indicators;
+    $('btnMethod').textContent = t.howTo;
+    
+    $('titleSettingsModal').textContent = t.settingsTitle;
+    $('labelStartDate').textContent = t.startDate;
+    $('labelFreq').textContent = t.freq;
+    $('optDaily').textContent = t.freqDaily;
+    $('optHourly').textContent = t.freqHourly;
+    $('btnSave').textContent = t.save;
+    
+    $('titleMethodModal').textContent = t.methodTitle;
+
+    $('metaLabelDate').textContent = t.date;
+    $('metaLabelPrice').textContent = t.price;
+    $('metaLabelFreq').textContent = t.freqTitle;
+  }
+  
+  // Setup default date (2 years ago)
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 2);
+  $('startDate').value = d.toISOString().split('T')[0];
+
+  // Gauge logic
+  function updateGauge(score) {
+    if(score === null || score === undefined || isNaN(score)) score = 0;
+    
+    const max = 100;
+    const r = 50;
+    const c = Math.PI * r; 
+    const arcLen = Math.PI * 50; 
+    
+    const val = Math.max(0, Math.min(score, 100));
+    const offset = arcLen - (val / 100) * arcLen;
+    
+    const fill = $('gaugeFill');
+    fill.style.strokeDasharray = `${arcLen}`;
+    fill.style.strokeDashoffset = `${offset}`;
+    fill.style.stroke = getColor(val);
+  }
+  
+  function renderTabs() {
+    const container = $('marketTabs');
+    container.innerHTML = '';
+    
+    Object.keys(MARKETS).forEach(key => {
+      const btn = document.createElement('button');
+      btn.className = `tab-btn ${key === activeMarket ? 'active' : ''}`;
+      btn.textContent = STRINGS[curLang].markets[key];
+      btn.onclick = () => {
+        activeMarket = key;
+        renderTabs();
+        initMarketOverview();
+      };
+      container.appendChild(btn);
+    });
+  }
+
+  async function initMarketOverview() {
+    const container = $('marketOverview');
+    container.innerHTML = ''; // clear
+    
+    const indices = MARKETS[activeMarket];
+    
+    // Render skeletons first
+    indices.forEach(t => {
+      const skel = document.createElement('div');
+      skel.className = 'market-card skel';
+      skel.style.height = '100px';
+      container.appendChild(skel);
+    });
+    
+    // Parallel fetch
+    const promises = indices.map(ticker => fetchTickerData(ticker));
+    const results = await Promise.all(promises);
+    
+    container.innerHTML = ''; // clear skeletons
+    
+    results.forEach((data, i) => {
+      const ticker = indices[i];
+      const name = STRINGS[curLang].indices[ticker] || ticker;
+      
+      let score = 0, label = '-';
+      if(data && data.latest && !isNaN(data.latest.score)) {
+        score = Math.round(data.latest.score);
+        label = data.latest.label;
+      }
+      
+      const col = getColor(score);
+      
+      const card = document.createElement('div');
+      card.className = `market-card ${ticker === activeTicker ? 'active' : ''}`;
+      card.onclick = () => {
+        document.querySelectorAll('.market-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        $('tickerInput').value = ticker;
+        runAnalysis(ticker);
+      };
+      
+      card.innerHTML = `
+        <div class="mc-header">
+          <span class="mc-ticker">${ticker}</span>
+          <span class="mc-name">${name}</span>
+        </div>
+        <div class="mc-score" style="color:${col}">${score}</div>
+        <div class="mc-label" style="color:${col}">${label}</div>
+      `;
+      container.appendChild(card);
+    });
+  }
+  
+  async function fetchTickerData(ticker) {
+    try {
+      const params = new URLSearchParams({
+        ticker,
+        start: $('startDate').value,
+        freq: '1d', // Force daily for overview
+        window: 252,
+        tail: 1, // We only need latest for overview
+        lang: curLang
+      });
+      const res = await fetch(`/fear-greed?${params}`);
+      if(!res.ok) return null;
+      return await res.json();
+    } catch(e) {
+      return null;
+    }
+  }
+
+  async function runAnalysis(tickerOverride) {
+    const btn = $('tickerInput');
+    const ticker = (tickerOverride || btn.value).toUpperCase();
+    if(!ticker) return showToast(STRINGS[curLang].inputTicker);
+    
+    activeTicker = ticker;
+    if(btn.value.toUpperCase() !== ticker) btn.value = ticker;
+    
+    // Highlight overview card if matches
+    document.querySelectorAll('.market-card').forEach(c => {
+      const tEl = c.querySelector('.mc-ticker');
+      if(tEl && tEl.textContent === ticker) c.classList.add('active');
+      else c.classList.remove('active');
+    });
+    
+    // Skeleton state
+    document.querySelectorAll('.score-big, .meta-val, .metric-card').forEach(el => el.classList.add('skel'));
+    
+    try {
+      const params = new URLSearchParams({
+        ticker,
+        start: $('startDate').value,
+        freq: $('freqSelect').value,
+        window: 252, // Default window
+        tail: 5000, // Large enough to cover long history (e.g. 5y daily is ~1260)
+        lang: curLang
+      });
+
+      const res = await fetch(`/fear-greed?${params}`);
+      if(!res.ok) {
+        const j = await res.json();
+        throw new Error(j.detail || "Request failed");
+      }
+      const data = await res.json();
+      renderData(data);
+      
+    } catch(e) {
+      showToast(e.message);
+      // Highlight error
+      btn.style.borderColor = 'var(--fear)';
+      setTimeout(() => btn.style.borderColor = '', 2000);
+    } finally {
+      document.querySelectorAll('.skel').forEach(el => el.classList.remove('skel'));
+    }
+  }
+
+  function renderData(data) {
+    // Meta
+    $('metaDate').textContent = data.latest?.date || '-';
+    $('metaPrice').textContent = data.latest?.price ? data.latest.price.toFixed(2) : '-';
+    $('metaFreq').textContent = data.frequency.toUpperCase();
+
+    // Score
+    const score = data.latest?.score || 0;
+    const label = data.latest?.label || 'N/A';
+    
+    // Animate count
+    let start = 0;
+    const end = Math.round(score);
+    const duration = 1000;
+    const stepTime = Math.abs(Math.floor(duration / end));
+    
+    const timer = setInterval(() => {
+      if(score === 0) { clearInterval(timer); $('scoreVal').textContent = 0; return; }
+      start += 1;
+      $('scoreVal').textContent = start;
+      if(start >= end) clearInterval(timer);
+    }, Math.max(stepTime, 10));
+
+    $('scoreLabel').textContent = label;
+    $('scoreLabel').style.color = getColor(score);
+    
+    updateGauge(score);
+    
+    // Chart
+    renderChart(data.series);
+    
+    // Metrics
+    renderMetrics(data.latest_subscores, data.components);
+    
+    // Method
+    renderMethod(data.method, data.components);
+  }
+
+  function renderChart(series) {
+    if(!series) return;
+    lastSeries = series;
+    const x = series.map(d => d.date);
+    const yScore = series.map(d => d.score);
+    const yPrice = series.map(d => d.price); // Assumes backend sends price in series
+    
+    // Plotly locale config
+    const locale = curLang === 'zh' ? 'zh-CN' : 'en-US';
+
+    // Theme Colors
+    const isDark = curTheme === 'dark';
+    const gridColor = isDark ? '#222' : '#e5e7eb';
+    const textColor = isDark ? '#666' : '#6b7280';
+    const lineColor = isDark ? '#3b82f6' : '#2563eb';
+    const priceColor = isDark ? '#fbbf24' : '#d97706';
+    
+    const traceScore = {
+      x, y: yScore,
+      name: curLang === 'zh' ? '贪婪指数' : 'Greed Score',
+      type: 'scatter',
+      mode: 'lines',
+      line: { color: lineColor, width: 2 },
+      fill: 'tozeroy',
+      fillcolor: isDark ? 'rgba(59, 130, 246, 0.1)' : 'rgba(37, 99, 235, 0.1)',
+      hoverinfo: 'x+y'
+    };
+
+    const tracePrice = {
+      x, y: yPrice,
+      name: curLang === 'zh' ? '价格' : 'Price',
+      type: 'scatter',
+      mode: 'lines',
+      line: { color: priceColor, width: 1.5, dash: 'dot' }, // Yellow, dotted
+      yaxis: 'y2',
+      hoverinfo: 'x+y'
+    };
+    
+    const layout = {
+      paper_bgcolor: 'transparent',
+      plot_bgcolor: 'transparent',
+      margin: { t: 30, b: 20, l: 30, r: 30 }, // More right margin for Y2
+      font: { family: 'Plus Jakarta Sans', color: textColor },
+      xaxis: { 
+        gridcolor: gridColor, 
+        linecolor: gridColor,
+        tickcolor: gridColor,
+        automargin: true,
+        tickformat: curLang === 'zh' ? '%Y年%m月' : '%b %Y'
+      },
+      yaxis: { 
+        title: 'Score',
+        range: [0, 100], 
+        gridcolor: gridColor,
+        zerolinecolor: gridColor,
+        titlefont: { size: 10 }
+      },
+      yaxis2: {
+        title: 'Price',
+        overlaying: 'y',
+        side: 'right',
+        gridcolor: 'transparent', // Don't clutter
+        linecolor: gridColor,
+        tickcolor: gridColor,
+        titlefont: { size: 10 }
+      },
+      showlegend: true,
+      legend: { x: 0, y: 1.1, orientation: 'h', font: { size: 11 } }
+    };
+    
+    Plotly.newPlot('historyChart', [traceScore, tracePrice], layout, { displayModeBar: false, responsive: true });
+  }
+
+  function renderMetrics(subscores, comps) {
+    const grid = $('metricsGrid');
+    grid.innerHTML = '';
+    
+    const map = {};
+    if(comps) comps.forEach(c => map[c.id] = c);
+    
+    if(subscores) {
+      Object.entries(subscores).forEach(([k, v]) => {
+        const info = map[k] || { name: k, description: '', detail: '' };
+        const val = Math.round(v);
+        const col = getColor(val);
+        
+        const card = document.createElement('div');
+        card.className = 'metric-card';
+        
+        // Encode details for tooltip
+        const detailText = (info.detail || info.description).replace(/"/g, '&quot;');
+        
+        card.innerHTML = `
+          <div class="mc-top">
+            <div class="mc-title-wrap">
+              <span class="mc-title">${info.name}</span>
+              <svg class="mc-info-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                onmouseenter="showTooltip(event, '${detailText}')" onmouseleave="hideTooltip()">
+                <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+            </div>
+            <span class="mc-val" style="color:${col}">${val}</span>
+          </div>
+          <div class="mc-bar-bg">
+            <div class="mc-bar-fill" style="width:${val}%; background:${col}"></div>
+          </div>
+          <div class="mc-desc">${info.description}</div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+  }
+  
+  const tooltip = $('tooltip');
+  function showTooltip(e, text) {
+    const rect = e.target.getBoundingClientRect();
+    tooltip.textContent = text;
+    tooltip.classList.add('show');
+    
+    // Position
+    let left = rect.left + window.scrollX - 10;
+    let top = rect.top + window.scrollY - tooltip.offsetHeight - 10;
+    
+    // Boundary check (mobile)
+    if(left + 260 > window.innerWidth) left = window.innerWidth - 270;
+    if(left < 10) left = 10;
+    
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+  }
+  function hideTooltip() {
+    tooltip.classList.remove('show');
+  }
+
+  function renderMethod(method, comps) {
+    if(!method) return;
+    let h = `<p style="margin-bottom:12px">${method.normalize}</p>`;
+    h += `<p style="margin-bottom:20px">${method.aggregate}</p>`;
+    if(comps) {
+      comps.forEach(c => {
+        h += `<div style="margin-bottom:8px; font-size:12px">
+          <span style="color:#fff; font-weight:600">${c.name}</span> 
+          <span style="color:#666">(${c.weight * 100}%)</span>: ${c.description}
+        </div>`;
+      });
+    }
+    $('methodContent').innerHTML = h;
+  }
+
+  function getColor(v) {
+    if(v <= 25) return '#ef4444';
+    if(v <= 45) return '#f97316';
+    if(v <= 55) return '#eab308';
+    if(v <= 75) return '#84cc16';
+    return '#10b981';
+  }
+
+  function toggleSettings() { $('settingsModal').classList.toggle('open'); }
+  function toggleMethod() { $('methodModal').classList.toggle('open'); }
+  function showToast(m) { 
+    const t = $('toast'); t.textContent = m; t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 3000);
+  }
+
+  // Start
+  applyLang();
+  applyTheme();
+  renderTabs();
+  initMarketOverview();
+  runAnalysis(activeTicker);
+</script>
+{{end}}

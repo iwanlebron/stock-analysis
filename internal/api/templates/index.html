@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+{{template "head" .}}
+<body>
+  <div class="container">
+    {{template "header" .}}
+
+    <div>
+      <div id="marketTabs" class="tabs">
+        <!-- Tabs injected via JS -->
+      </div>
+      <!-- Market Overview -->
+      <div id="marketOverview" class="market-overview">
+        <!-- Cards injected via JS -->
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <!-- Left: Gauge -->
+      <div class="panel gauge-panel">
+        <div class="gauge-wrap">
+          <svg class="gauge-svg" viewBox="0 0 120 60">
+            <!-- Background Arc -->
+            <path class="gauge-arc-bg" d="M 10 60 A 50 50 0 0 1 110 60" />
+            <!-- Fill Arc -->
+            <path id="gaugeFill" class="gauge-arc-fill" d="M 10 60 A 50 50 0 0 1 110 60" />
+          </svg>
+        </div>
+        
+        <div id="scoreVal" class="score-big">-</div>
+        <div id="scoreLabel" class="score-label">-</div>
+        
+        <div class="meta-row">
+          <div class="meta-item">
+            <span class="meta-label" id="metaLabelPrice">Price</span>
+            <span class="meta-val" id="metaPrice">--</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label" id="metaLabelDate">Date</span>
+            <span class="meta-val" id="metaDate">--</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label" id="metaLabelFreq">Freq</span>
+            <span class="meta-val" id="metaFreq">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Chart -->
+      <div class="panel" style="display:flex; flex-direction:column; padding-bottom:12px;">
+        <div class="chart-header">
+          <div class="panel-title" id="titleHistory">历史走势</div>
+          <div class="legend">
+            <div id="legendGreed"><span class="dot" style="background:var(--greed)"></span>贪婪 > 75</div>
+            <div id="legendFear"><span class="dot" style="background:var(--fear)"></span>恐惧 < 25</div>
+          </div>
+        </div>
+        <div id="historyChart" style="width:100%; flex:1; min-height:300px;"></div>
+      </div>
+    </div>
+
+    <div class="metrics-section">
+      <div class="section-header">
+        <div class="section-title" id="titleIndicators">指标拆解 (0-100)</div>
+        <button id="btnMethod" style="background:none; border:none; color:var(--text-tertiary); cursor:pointer; font-size:12px; text-decoration:underline" onclick="toggleMethod()">如何计算?</button>
+      </div>
+      <div id="metricsGrid" class="metrics-grid"></div>
+    </div>
+  </div>
+
+  {{template "modals" .}}
+  {{template "scripts" .}}
+</body>
+</html>

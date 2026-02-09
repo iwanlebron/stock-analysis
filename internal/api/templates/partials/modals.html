@@ -1,0 +1,33 @@
+{{define "modals"}}
+<!-- Modals -->
+<div id="settingsModal" class="modal-backdrop" onclick="if(event.target===this) toggleSettings()">
+  <div class="modal">
+    <h3 id="titleSettingsModal">设置</h3>
+
+    <div class="input-group">
+      <label id="labelStartDate">开始日期</label>
+      <input type="date" id="startDate" class="input-field" value="2023-01-01">
+    </div>
+    <div class="input-group">
+      <label id="labelFreq">频率</label>
+      <select id="freqSelect" class="input-field">
+        <option value="1d" id="optDaily">日线 (1D)</option>
+        <option value="1h" id="optHourly">小时线 (1H)</option>
+      </select>
+    </div>
+    <button class="btn-primary" onclick="toggleSettings(); runAnalysis()" id="btnSave">保存并应用</button>
+  </div>
+</div>
+
+<div id="methodModal" class="modal-backdrop" onclick="if(event.target===this) toggleMethod()">
+  <div class="modal">
+    <h3 id="titleMethodModal">计算方法</h3>
+    <div id="methodContent" style="font-size:13px; line-height:1.6; color:var(--text-secondary)">
+      Loading...
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<div id="tooltip" class="tooltip"></div>
+{{end}}
