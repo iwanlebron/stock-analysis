@@ -9,7 +9,10 @@ if ! command -v docker &> /dev/null; then
 fi
 
 # 2. 获取 DockerHub 用户名
-read -p "请输入您的 DockerHub 用户名 (例如 iwanlebron): " DOCKER_USER
+DOCKER_USER=$1
+if [ -z "$DOCKER_USER" ]; then
+    read -p "请输入您的 DockerHub 用户名 (例如 iwanlebron): " DOCKER_USER
+fi
 
 if [ -z "$DOCKER_USER" ]; then
     echo "错误: 用户名不能为空。"
