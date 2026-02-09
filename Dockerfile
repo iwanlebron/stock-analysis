@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.22-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS builder
 
 WORKDIR /app
 
@@ -12,12 +12,13 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the application for multiple architectures
 # CGO_ENABLED=0 is important for alpine to run the binary
-RUN CGO_ENABLED=0 GOOS=linux go build -o server main.go
+ARG TARGETOS TARGETARCH
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o server main.go
 
 # Run stage
-FROM alpine:latest
+FROM --platform=$TARGETPLATFORM alpine:latest
 
 WORKDIR /app
 
