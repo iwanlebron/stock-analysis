@@ -99,5 +99,5 @@ GET /fear-greed?ticker=AAPL&freq=1d&window=252
 ├── go.mod           # 依赖管理
 ├── go.sum           # 依赖校验
 ├── Dockerfile       # Docker 构建文件
-└── push_to_dockerhub.sh  # Docker 推送脚本
+└── docker.sh        # Docker 推送脚本
 ```

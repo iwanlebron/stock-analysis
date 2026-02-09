@@ -6,12 +6,12 @@
 
 ### 1. 拉取镜像
 ```bash
-docker pull <your-username>/stock-analysis:latest
+docker pull iwanlebron/stock-analysis:latest
 ```
 
 ### 2. 运行容器
 ```bash
-docker run -d -p 8000:8000 --name stock-analysis <your-username>/stock-analysis:latest
+docker run -d -p 8000:8000 --name stock-analysis iwanlebron/stock-analysis:latest
 ```
 
 ### 3. 访问服务
@@ -28,7 +28,7 @@ docker run -d \
   -p 8080:8000 \
   -e PORT=8000 \
   --name stock-analysis \
-  <your-username>/stock-analysis:latest
+  iwanlebron/stock-analysis:latest
 ```
 
 ## 🛠️ 构建自己的镜像
@@ -36,7 +36,7 @@ docker run -d \
 如果你想从源码构建：
 
 ```bash
-git clone https://github.com/your-repo/stock-analysis.git
+git clone https://github.com/iwanlebron/stock-analysis.git
 cd stock-analysis
 docker build -t stock-analysis .
 docker run -p 8000:8000 stock-analysis
