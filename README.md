@@ -12,20 +12,6 @@
 - **高性能**：Go 语言原生实现，秒级启动，极低的资源占用。
 - **零依赖部署**：所有静态资源（HTML/JS）均编译进二进制文件，下载即用。
 
-## 项目截图
-
-### 📊 主仪表盘
-
-![主仪表盘](https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=stock%20market%20fear%20and%20greed%20index%20dashboard%20with%20large%20score%20display%20in%20center%2C%20green%20color%20for%20greed%2C%20red%20for%20fear%2C%20modern%20web%20interface%2C%20clean%20design%2C%20professional%20financial%20tool&image_size=landscape_16_9)
-
-### 📈 历史趋势
-
-![历史趋势](https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=stock%20market%20fear%20and%20greed%20index%20historical%20trend%20chart%20with%20line%20graph%2C%20time%20series%20data%2C%20green%20and%20red%20areas%2C%20modern%20data%20visualization%2C%20professional%20financial%20dashboard&image_size=landscape_16_9)
-
-### 📋 指标矩阵
-
-![指标矩阵](https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=stock%20market%20technical%20indicators%20matrix%20with%20multiple%20cards%2C%20showing%20RSI%2C%20MACD%2C%20volatility%2C%20momentum%20indicators%2C%20modern%20grid%20layout%2C%20professional%20financial%20dashboard%20design&image_size=landscape_16_9)
-
 ## 快速开始
 
 ### 🐳 Docker 部署 (推荐)
