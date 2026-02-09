@@ -19,8 +19,8 @@
 最简单的方式是直接使用 Docker 运行：
 
 ```bash
-docker pull <your-username>/stock-analysis:latest
-docker run -d -p 8000:8000 --name stock-analysis <your-username>/stock-analysis:latest
+docker pull iwanlebron/stock-analysis:latest
+docker run -d -p 8000:8000 --name stock-analysis iwanlebron/stock-analysis:latest
 ```
 
 详细 Docker 使用指南请参考 [DOCKER.md](DOCKER.md)。
