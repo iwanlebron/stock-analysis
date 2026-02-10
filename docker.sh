@@ -22,21 +22,22 @@ fi
 IMAGE_NAME="stock-analysis"
 FULL_IMAGE_NAME="$DOCKER_USER/$IMAGE_NAME:latest"
 
-# 3. 构建镜像 (确保是最新代码)
-echo "正在构建镜像..."
-docker build -t $IMAGE_NAME .
-
-# 4. 打标签
-echo "正在为镜像打标签: $FULL_IMAGE_NAME"
-docker tag $IMAGE_NAME $FULL_IMAGE_NAME
-
-# 5. 登录 DockerHub
+# 3. 登录 DockerHub
 echo "请登录 DockerHub..."
 docker login
 
-# 6. 推送镜像
-echo "正在推送镜像到 DockerHub..."
-docker push $FULL_IMAGE_NAME
+# 4. 初始化 Buildx 构建器
+echo "正在初始化 Buildx 构建器..."
+docker buildx create --use --name multiarch-builder || docker buildx use multiarch-builder
+docker buildx inspect --bootstrap
+
+# 5. 使用 Buildx 构建多架构镜像并推送
+echo "正在构建多架构镜像 (amd64, arm64)..."
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --tag $FULL_IMAGE_NAME \
+  --push \
+  .
 
 echo "=== 完成！ ==="
 echo "您现在可以使用以下命令拉取并运行镜像："
