@@ -5,6 +5,8 @@
   const STRINGS = {
     zh: {
       searchPlaceholder: "输入股票代码 (如 AAPL)",
+      searchNoResults: "无匹配结果",
+      searchMatches: "匹配",
       runAnalysis: "运行分析",
       settings: "设置",
       history: "历史走势",
@@ -48,6 +50,8 @@
     },
     en: {
       searchPlaceholder: "Enter Ticker (e.g. AAPL)",
+      searchNoResults: "No results",
+      searchMatches: "Matches",
       runAnalysis: "Run Analysis",
       settings: "Settings",
       history: "History",
@@ -106,6 +110,8 @@
   let activeMarket = "us";
   let activeTicker = "SPY"; 
   let lastSeries = null; // Store for re-rendering chart on theme switch
+  let suggestionTickers = [];
+  let suggestionActiveIdx = -1;
 
   function toggleTheme() {
     curTheme = curTheme === 'dark' ? 'light' : 'dark';
@@ -128,42 +134,148 @@
   // Search Suggestions
   function showSuggestions() {
     const list = $('suggestions');
-    list.innerHTML = '';
-    
-    // Group by Market
-    Object.keys(MARKETS).forEach(mKey => {
-      const mName = STRINGS[curLang].markets[mKey];
-      const tickers = MARKETS[mKey];
-      
-      const group = document.createElement('div');
-      group.className = 'suggestion-group';
-      group.textContent = mName;
-      list.appendChild(group);
-      
-      tickers.forEach(t => {
-        const name = STRINGS[curLang].indices[t] || t;
-        const item = document.createElement('div');
-        item.className = 'suggestion-item';
-        item.innerHTML = `<span class="s-ticker">${t}</span><span class="s-name">${name}</span>`;
-        item.onmousedown = (e) => { // use mousedown to prevent blur firing first
-          e.preventDefault();
-          selectSuggestion(t);
-        };
-        list.appendChild(item);
-      });
-    });
-    
     list.classList.add('show');
+    updateSuggestions();
   }
 
   function hideSuggestions() {
     $('suggestions').classList.remove('show');
+    suggestionTickers = [];
+    suggestionActiveIdx = -1;
   }
 
   function selectSuggestion(ticker) {
     $('tickerInput').value = ticker;
     hideSuggestions();
     runAnalysis(ticker);
+  }
+
+  function updateSuggestions() {
+    const list = $('suggestions');
+    if (!list) return;
+
+    const q = ($('tickerInput')?.value || '').trim();
+    const qUpper = q.toUpperCase();
+    const qLower = q.toLowerCase();
+
+    list.innerHTML = '';
+    suggestionTickers = [];
+    suggestionActiveIdx = -1;
+
+    const addItem = (ticker) => {
+      const name = STRINGS[curLang].indices[ticker] || ticker;
+      const item = document.createElement('div');
+      item.className = 'suggestion-item';
+      item.dataset.ticker = ticker;
+      item.innerHTML = `<span class="s-ticker">${ticker}</span><span class="s-name">${name}</span>`;
+      item.onmousedown = (e) => {
+        e.preventDefault();
+        selectSuggestion(ticker);
+      };
+      item.onmouseenter = () => setSuggestionActive(ticker);
+      list.appendChild(item);
+      suggestionTickers.push(ticker);
+    };
+
+    if (q === '') {
+      Object.keys(MARKETS).forEach(mKey => {
+        const mName = STRINGS[curLang].markets[mKey];
+        const group = document.createElement('div');
+        group.className = 'suggestion-group';
+        group.textContent = mName;
+        list.appendChild(group);
+        MARKETS[mKey].forEach(addItem);
+      });
+    } else {
+      const group = document.createElement('div');
+      group.className = 'suggestion-group';
+      group.textContent = STRINGS[curLang].searchMatches;
+      list.appendChild(group);
+
+      let added = 0;
+      const seen = new Set();
+      Object.keys(MARKETS).forEach(mKey => {
+        MARKETS[mKey].forEach(ticker => {
+          if (seen.has(ticker)) return;
+          const name = STRINGS[curLang].indices[ticker] || ticker;
+          if (ticker.toUpperCase().includes(qUpper) || name.toLowerCase().includes(qLower)) {
+            seen.add(ticker);
+            addItem(ticker);
+            added += 1;
+          }
+        });
+      });
+
+      if (added === 0) {
+        const item = document.createElement('div');
+        item.className = 'suggestion-item';
+        item.innerHTML = `<span class="s-name">${STRINGS[curLang].searchNoResults}</span>`;
+        list.appendChild(item);
+      }
+    }
+
+    if (suggestionTickers.length > 0) {
+      suggestionActiveIdx = 0;
+      refreshSuggestionActive();
+    }
+  }
+
+  function setSuggestionActive(ticker) {
+    const idx = suggestionTickers.indexOf(ticker);
+    if (idx === -1) return;
+    suggestionActiveIdx = idx;
+    refreshSuggestionActive();
+  }
+
+  function refreshSuggestionActive() {
+    const items = document.querySelectorAll('#suggestions .suggestion-item[data-ticker]');
+    items.forEach(el => el.classList.remove('active'));
+    if (suggestionActiveIdx < 0 || suggestionActiveIdx >= suggestionTickers.length) return;
+    const activeTicker = suggestionTickers[suggestionActiveIdx];
+    const activeEl = document.querySelector(`#suggestions .suggestion-item[data-ticker="${activeTicker}"]`);
+    if (activeEl) {
+      activeEl.classList.add('active');
+      activeEl.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  function handleTickerKeydown(e) {
+    if (e.key === 'Escape') {
+      hideSuggestions();
+      return;
+    }
+
+    const list = $('suggestions');
+    const visible = list && list.classList.contains('show');
+
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !visible) {
+      showSuggestions();
+    }
+
+    if (e.key === 'ArrowDown') {
+      if (suggestionTickers.length === 0) return;
+      e.preventDefault();
+      suggestionActiveIdx = Math.min(suggestionActiveIdx + 1, suggestionTickers.length - 1);
+      refreshSuggestionActive();
+      return;
+    }
+
+    if (e.key === 'ArrowUp') {
+      if (suggestionTickers.length === 0) return;
+      e.preventDefault();
+      suggestionActiveIdx = Math.max(suggestionActiveIdx - 1, 0);
+      refreshSuggestionActive();
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      if (visible && suggestionTickers.length > 0 && suggestionActiveIdx >= 0) {
+        e.preventDefault();
+        selectSuggestion(suggestionTickers[suggestionActiveIdx]);
+        return;
+      }
+      runAnalysis();
+    }
   }
 
   function toggleLang() {
@@ -403,9 +515,12 @@
   function renderChart(series) {
     if(!series) return;
     lastSeries = series;
-    const x = series.map(d => d.date);
-    const yScore = series.map(d => d.score);
-    const yPrice = series.map(d => d.price); // Assumes backend sends price in series
+    const maxPoints = 1500;
+    const step = Math.max(1, Math.ceil(series.length / maxPoints));
+    const sampled = step === 1 ? series : series.filter((_, i) => i % step === 0 || i === series.length - 1);
+    const x = sampled.map(d => d.date);
+    const yScore = sampled.map(d => d.score);
+    const yPrice = sampled.map(d => d.price);
     
     // Plotly locale config
     const locale = curLang === 'zh' ? 'zh-CN' : 'en-US';
@@ -470,7 +585,7 @@
       legend: { x: 0, y: 1.1, orientation: 'h', font: { size: 11 } }
     };
     
-    Plotly.newPlot('historyChart', [traceScore, tracePrice], layout, { displayModeBar: false, responsive: true });
+    Plotly.react('historyChart', [traceScore, tracePrice], layout, { displayModeBar: false, responsive: true });
   }
 
   function renderMetrics(subscores, comps) {

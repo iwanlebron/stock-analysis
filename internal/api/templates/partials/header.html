@@ -6,7 +6,7 @@
   </div>
   <div class="controls">
     <div class="search-wrap">
-      <input id="tickerInput" class="search-input" placeholder="输入股票代码 (如 AAPL)" value="AAPL" autocomplete="off" onfocus="showSuggestions()" onblur="setTimeout(hideSuggestions, 200)" onkeydown="if(event.key==='Enter') runAnalysis()">
+      <input id="tickerInput" class="search-input" placeholder="输入股票代码 (如 AAPL)" value="AAPL" autocomplete="off" onfocus="showSuggestions()" onblur="setTimeout(hideSuggestions, 200)" oninput="updateSuggestions()" onkeydown="handleTickerKeydown(event)">
       <div class="search-btn" onclick="runAnalysis()">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
       </div>

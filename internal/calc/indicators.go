@@ -36,7 +36,7 @@ func MFI(high, low, close, volume []float64, window int) []float64 {
 		// if equal, discard
 	}
 
-	// Calculate initial 
+	// Calculate initial
 	sumPos := 0.0
 	sumNeg := 0.0
 	for i := 1; i <= window; i++ {
@@ -110,13 +110,13 @@ func SMA(values []float64, window int) []float64 {
 	if len(values) < window {
 		return out
 	}
-	
+
 	sum := 0.0
 	for i := 0; i < window; i++ {
 		sum += values[i]
 	}
 	out[window-1] = sum / float64(window)
-	
+
 	for i := window; i < len(values); i++ {
 		sum = sum - values[i-window] + values[i]
 		out[i] = sum / float64(window)
@@ -174,19 +174,19 @@ func RSI(values []float64, window int) []float64 {
 	for i := window + 1; i < len(values); i++ {
 		avgGain = (avgGain*float64(window-1) + gains[i]) / float64(window)
 		avgLoss = (avgLoss*float64(window-1) + losses[i]) / float64(window)
-		
+
 		rs := 0.0
 		if avgLoss != 0 {
 			rs = avgGain / avgLoss
 		} else if avgGain == 0 {
-			rs = 0 
+			rs = 0
 		} else {
 			rs = 1e9 // Max
 		}
-		
+
 		out[i] = 100 - (100 / (1 + rs))
 	}
-	
+
 	// Initial value
 	rs := 0.0
 	if avgLoss != 0 {
@@ -220,7 +220,7 @@ func MACD(values []float64) []float64 {
 func EMA(values []float64, span int) []float64 {
 	out := make([]float64, len(values))
 	k := 2.0 / float64(span+1)
-	
+
 	// Start with SMA or first value
 	// Standard Pandas ewm adjust=False starts with first value as mean
 	if len(values) == 0 {
@@ -239,7 +239,7 @@ func RealizedVol(values []float64, window int) []float64 {
 	for i := range out {
 		out[i] = math.NaN()
 	}
-	
+
 	returns := make([]float64, len(values))
 	for i := 1; i < len(values); i++ {
 		if values[i-1] != 0 {
@@ -254,15 +254,15 @@ func RealizedVol(values []float64, window int) []float64 {
 			sum += returns[i-j]
 		}
 		mean := sum / float64(window)
-		
+
 		sqSum := 0.0
 		for j := 0; j < window; j++ {
 			d := returns[i-j] - mean
 			sqSum += d * d
 		}
-		std := math.Sqrt(sqSum / float64(window)) // Pandas default ddof=1? No, usually ddof=1. Python code used ddof=0? 
+		std := math.Sqrt(sqSum / float64(window)) // Pandas default ddof=1? No, usually ddof=1. Python code used ddof=0?
 		// Python code: .std(ddof=0) * np.sqrt(252)
-		
+
 		out[i] = std * math.Sqrt(252)
 	}
 	return out
@@ -283,14 +283,14 @@ func RollingScore(values []float64, window int, direction int) []float64 {
 		if math.IsNaN(values[i]) {
 			continue
 		}
-		
+
 		// Collect valid history window
 		buf = buf[:0]
 		start := i - window + 1
 		if start < 0 {
 			start = 0
 		}
-		
+
 		currentVal := values[i] * float64(direction)
 
 		// We need to verify min_periods? Python code used min_periods=window
@@ -298,8 +298,8 @@ func RollingScore(values []float64, window int, direction int) []float64 {
 		// EXCEPT if total data is short, handled outside.
 		// Let's implement min_periods logic: if valid count < window, return NaN?
 		// The python code: rolling(window=norm_window, min_periods=norm_window)
-		
-		// However, to prevent NaN start, we often allow smaller window at start? 
+
+		// However, to prevent NaN start, we often allow smaller window at start?
 		// Python code strictly waits for window.
 		if i < window-1 {
 			out[i] = math.NaN()
@@ -323,10 +323,10 @@ func RollingScore(values []float64, window int, direction int) []float64 {
 				countSmaller++
 			}
 		}
-		
+
 		pct := float64(countSmaller) / float64(len(buf))
 		out[i] = pct * 100.0
 	}
-	
+
 	return out
 }

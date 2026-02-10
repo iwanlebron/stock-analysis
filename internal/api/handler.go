@@ -1,14 +1,17 @@
 package api
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
 	"html/template"
 	"log"
 	"math"
+	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"stock-analysis/internal/calc"
@@ -23,6 +26,7 @@ var templateFS embed.FS
 
 var templates *template.Template
 var memCache *cache.Cache
+var rateCache *cache.Cache
 
 func init() {
 	var err error
@@ -34,13 +38,15 @@ func init() {
 	// Create a cache with a default expiration time of 5 minutes, and which
 	// purges expired items every 10 minutes
 	memCache = cache.New(5*time.Minute, 10*time.Minute)
+	rateCache = cache.New(2*time.Minute, 5*time.Minute)
 }
 
 func Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handleIndex)
+	mux.HandleFunc("/healthz", handleHealthz)
 	mux.HandleFunc("/fear-greed", handleFearGreed)
-	return loggingMiddleware(mux)
+	return loggingMiddleware(rateLimitMiddleware(mux))
 }
 
 func loggingMiddleware(next http.Handler) http.Handler {
@@ -55,6 +61,55 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func rateLimitMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/fear-greed" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		ip := r.Header.Get("X-Forwarded-For")
+		if ip != "" {
+			if i := strings.Index(ip, ","); i != -1 {
+				ip = strings.TrimSpace(ip[:i])
+			} else {
+				ip = strings.TrimSpace(ip)
+			}
+		} else {
+			host, _, err := net.SplitHostPort(r.RemoteAddr)
+			if err == nil {
+				ip = host
+			} else {
+				ip = r.RemoteAddr
+			}
+		}
+
+		key := "rl:" + ip
+		if _, found := rateCache.Get(key); !found {
+			rateCache.Set(key, int64(1), time.Minute)
+		} else {
+			_ = rateCache.Increment(key, 1)
+		}
+
+		v, _ := rateCache.Get(key)
+		var count int64
+		if vv, ok := v.(int64); ok {
+			count = vv
+		}
+
+		if count > 60 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusTooManyRequests)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"detail": "请求过于频繁，请稍后再试",
+			})
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 type responseWriterWrapper struct {
 	http.ResponseWriter
 	statusCode int
@@ -63,6 +118,13 @@ type responseWriterWrapper struct {
 func (w *responseWriterWrapper) WriteHeader(code int) {
 	w.statusCode = code
 	w.ResponseWriter.WriteHeader(code)
+}
+
+func handleHealthz(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"status": "ok",
+	})
 }
 
 func handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -80,6 +142,9 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleFearGreed(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
+	defer cancel()
+
 	q := r.URL.Query()
 	ticker := q.Get("ticker")
 	if ticker == "" {
@@ -147,7 +212,7 @@ func handleFearGreed(w http.ResponseWriter, r *http.Request) {
 	// Fetch Data
 	log.Printf("Fetching data for %s (Start: %s, Freq: %s)", ticker, startStr, freq)
 	provider := data.NewYahooProvider()
-	pf, err := provider.GetPrices(ticker, fetchStart, time.Time{}, freq)
+	pf, err := provider.GetPrices(ctx, ticker, fetchStart, time.Time{}, freq)
 	if err != nil {
 		log.Printf("Error fetching data for %s: %v", ticker, err)
 		w.Header().Set("Content-Type", "application/json")

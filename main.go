@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"stock-analysis/internal/api"
+	"time"
 )
 
 func main() {
@@ -16,8 +17,12 @@ func main() {
 
 	handler := api.Handler()
 	server := &http.Server{
-		Addr:    ":" + port,
-		Handler: handler,
+		Addr:              ":" + port,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	fmt.Printf("Starting Fear & Greed Server on http://localhost:%s\n", port)
